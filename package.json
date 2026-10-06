@@ -40,5 +40,11 @@
   },
   "optionalDependencies": {
     "@esbuild/linux-x64": "^0.28.2"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@esbuild/linux-x64",
+      "esbuild"
+    ]
   }
 }
