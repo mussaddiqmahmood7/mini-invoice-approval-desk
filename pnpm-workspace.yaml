@@ -1,0 +1,7 @@
+packages:
+  - "."
+onlyBuiltDependencies:
+  - "esbuild"
+  - "@esbuild/linux-x64"
+  - "sharp"
+  - "unrs-resolver"
