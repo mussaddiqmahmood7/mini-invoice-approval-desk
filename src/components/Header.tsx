@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Hammer, RefreshCw, HardHat, CheckCircle2 } from "lucide-react";
+import { Hammer, RefreshCw, CheckCircle2 } from "lucide-react";
 import { ThemeToggle } from "./ui/theme-toggle";
 
 interface HeaderProps {
@@ -60,13 +60,6 @@ export function Header({ onSeed, isSeeding, totalInvoices }: HeaderProps) {
 
           {/* User & Actions Right */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            {/* Engineer Identity (Hidden on mobile) */}
-            <div className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs">
-              <HardHat className="w-3.5 h-3.5 text-amber-500" />
-              <span className="text-zinc-700 dark:text-zinc-300 font-medium">Mussaddiq Mahmood</span>
-              <span className="text-zinc-500 text-[11px] font-mono">(Engineer)</span>
-            </div>
-
             {/* Light / Dark Mode Toggle */}
             <ThemeToggle />
 

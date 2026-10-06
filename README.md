@@ -265,18 +265,3 @@ The seed dataset models real-world commercial construction billing:
    pnpm dev
    ```
 
----
-
-## 🎙️ Note for Sledge Application
-
-> As requested in the email, Mussaddiq Mahmood will include the 1-minute audio recording reading the passage:
->
-> *"Every building starts with a plan. Before a single wall goes up, a team decides what the building will look like and how it will be used. Workers measure the land, order materials, and set a schedule.*
-> 
-> *Building something big takes many people working together. Carpenters frame the walls. Electricians run the wires. Plumbers connect the pipes. Each person depends on the others to finish their part on time.*
-> 
-> *Good communication keeps a project moving. When someone changes a plan, everyone needs to know quickly. A small mistake on paper can become a big problem on the job site.*
-> 
-> *Today, new tools help teams stay organized. Instead of searching through stacks of paper, workers can check a phone or tablet to see what needs to be done next.*
-> 
-> *In the end, every finished building is proof of careful planning, hard work, and teamwork."*
