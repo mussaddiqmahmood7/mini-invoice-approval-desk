@@ -1,5 +1,9 @@
 packages:
   - "."
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
 onlyBuiltDependencies:
   - "esbuild"
   - "@esbuild/linux-x64"
