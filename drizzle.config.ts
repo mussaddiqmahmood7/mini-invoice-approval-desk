@@ -8,6 +8,6 @@ export default defineConfig({
   out: "./src/db/migrations",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL || "postgres://postgres:postgrespassword@localhost:5432/sledge_invoices",
+    url: process.env.DATABASE_URL || "postgres://postgres:postgrespassword@localhost:5433/sledge_invoices",
   },
 });

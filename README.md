@@ -211,7 +211,7 @@ The seed dataset models real-world commercial construction billing:
    ```bash
    cp .env.example .env
    ```
-   *(Default connection string is already configured for local Docker: `postgres://postgres:postgrespassword@localhost:5432/sledge_invoices`)*
+   *(Default connection string is already configured for local Docker: `postgres://postgres:postgrespassword@localhost:5433/sledge_invoices`)*
 3. Push schema migrations:
    ```bash
    pnpm db:push
