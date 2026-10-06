@@ -54,13 +54,14 @@ export default function ApprovalDeskPage() {
         if (json.stats) setStats(json.stats);
         if (json.vendors) setVendors(json.vendors);
 
-        // Update selectedInvoice if it is currently open in drawer
-        if (selectedInvoice) {
+        // Update selectedInvoice if it is currently open in drawer without causing re-renders
+        setSelectedInvoice((prev) => {
+          if (!prev) return null;
           const updated = json.data.find(
-            (inv: InvoiceWithRelations) => inv.id === selectedInvoice.id
+            (inv: InvoiceWithRelations) => inv.id === prev.id
           );
-          if (updated) setSelectedInvoice(updated);
-        }
+          return updated ? { ...prev, ...updated } : prev;
+        });
       }
     } catch (err) {
       console.error("Failed to load invoices:", err);
@@ -68,7 +69,7 @@ export default function ApprovalDeskPage() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [currentTab, search, selectedVendor, selectedInvoice]);
+  }, [currentTab, search, selectedVendor]);
 
   useEffect(() => {
     fetchInvoices();
