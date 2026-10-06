@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "node --require ./patch-fs.js node_modules/next/dist/bin/next dev",
-    "build": "node --require ./patch-fs.js node_modules/next/dist/bin/next build",
-    "start": "node --require ./patch-fs.js node_modules/next/dist/bin/next start",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "lint": "next lint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
