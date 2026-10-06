@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { Header } from "@/components/Header";
 import { KPIBar } from "@/components/KPIBar";
 import { TabsNav } from "@/components/TabsNav";
@@ -8,7 +8,12 @@ import { FilterBar } from "@/components/FilterBar";
 import { InvoiceTable } from "@/components/InvoiceTable";
 import { InvoiceDetailDrawer } from "@/components/InvoiceDetailDrawer";
 import type { InvoiceWithRelations, KPIStats, TabType } from "@/types/invoice";
-import { Sparkles, Database, ArrowUpRight } from "lucide-react";
+import {
+  useInvoicesQuery,
+  useInvoiceDetailQuery,
+  useUpdateInvoiceStatus,
+  useSeedDatabase,
+} from "@/hooks/useInvoices";
 
 const INITIAL_STATS: KPIStats = {
   processingCount: 0,
@@ -27,68 +32,41 @@ export default function ApprovalDeskPage() {
   const [currentTab, setCurrentTab] = useState<TabType>("processing");
   const [search, setSearch] = useState("");
   const [selectedVendor, setSelectedVendor] = useState("ALL");
-  const [invoices, setInvoices] = useState<InvoiceWithRelations[]>([]);
-  const [stats, setStats] = useState<KPIStats>(INITIAL_STATS);
-  const [vendors, setVendors] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceWithRelations | null>(null);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const fetchInvoices = useCallback(async (isSilent = false) => {
-    try {
-      if (!isSilent) setIsLoading(true);
-      else setIsRefreshing(true);
+  // TanStack Query for invoices ledger
+  const { data: invoicesResponse, isLoading } = useInvoicesQuery(
+    currentTab,
+    search,
+    selectedVendor
+  );
 
-      const params = new URLSearchParams();
-      if (currentTab) params.set("tab", currentTab);
-      if (search) params.set("search", search);
-      if (selectedVendor && selectedVendor !== "ALL") params.set("vendor", selectedVendor);
+  // TanStack Query for selected invoice detail
+  const { data: detailResponse } = useInvoiceDetailQuery(selectedInvoiceId);
 
-      const res = await fetch(`/api/invoices?${params.toString()}`);
-      const json = await res.json();
+  // Mutations
+  const updateStatusMutation = useUpdateInvoiceStatus();
+  const seedMutation = useSeedDatabase();
 
-      if (json.success) {
-        setInvoices(json.data);
-        if (json.stats) setStats(json.stats);
-        if (json.vendors) setVendors(json.vendors);
+  const invoices = invoicesResponse?.data || [];
+  const stats = invoicesResponse?.stats || INITIAL_STATS;
+  const vendors = invoicesResponse?.vendors || [];
 
-        // Update selectedInvoice if it is currently open in drawer without causing re-renders
-        setSelectedInvoice((prev) => {
-          if (!prev) return null;
-          const updated = json.data.find(
-            (inv: InvoiceWithRelations) => inv.id === prev.id
-          );
-          return updated ? { ...prev, ...updated } : prev;
-        });
-      }
-    } catch (err) {
-      console.error("Failed to load invoices:", err);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [currentTab, search, selectedVendor]);
+  // Active invoice in drawer is either full detail or list item fallback
+  const activeInvoice =
+    detailResponse?.data ||
+    invoices.find((inv) => inv.id === selectedInvoiceId) ||
+    null;
 
-  useEffect(() => {
-    fetchInvoices();
-  }, [fetchInvoices]);
-
-  const handleSelectInvoice = async (invoice: InvoiceWithRelations) => {
-    setSelectedInvoice(invoice);
+  const handleSelectInvoice = (invoice: InvoiceWithRelations) => {
+    setSelectedInvoiceId(invoice.id);
     setIsDrawerOpen(true);
+  };
 
-    // Fetch complete detail including duplicate relations if needed
-    try {
-      const res = await fetch(`/api/invoices/${invoice.id}`);
-      const json = await res.json();
-      if (json.success && json.data) {
-        setSelectedInvoice(json.data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch full invoice detail:", err);
-    }
+  const handleCloseDrawer = () => {
+    setIsDrawerOpen(false);
   };
 
   const handleStatusUpdate = async (
@@ -97,45 +75,38 @@ export default function ApprovalDeskPage() {
     note?: string,
     actor?: string
   ) => {
-    const res = await fetch(`/api/invoices/${id}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, note, actor }),
-    });
-
-    const json = await res.json();
-    if (!res.ok || !json.success) {
-      throw new Error(json.error || "Failed to update status");
+    try {
+      await updateStatusMutation.mutateAsync({ id, status, note, actor });
+      setToastMessage(`Invoice successfully updated to ${status}`);
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to update status";
+      alert("Error updating invoice: " + message);
     }
+  };
 
-    setToastMessage(`Invoice successfully marked as ${status}`);
-    setTimeout(() => setToastMessage(null), 4000);
-
-    // Refresh data and update drawer view
-    if (json.data) {
-      setSelectedInvoice(json.data);
-    }
-    await fetchInvoices(true);
+  const handleSeed = async () => {
+    await seedMutation.mutateAsync();
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col transition-colors duration-150">
       {/* Top Header */}
       <Header
-        onDataRefresh={() => fetchInvoices(true)}
-        isRefreshing={isRefreshing}
+        onSeed={handleSeed}
+        isSeeding={seedMutation.isPending}
         totalInvoices={stats.totalCount}
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-4 sm:space-y-6">
         {/* Toast Alert */}
         {toastMessage && (
-          <div className="p-3 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-mono flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="p-3 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-mono flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-200">
             <span>{toastMessage}</span>
             <button
               onClick={() => setToastMessage(null)}
-              className="text-emerald-400 hover:text-emerald-200 ml-4"
+              className="text-emerald-600 dark:text-emerald-400 hover:opacity-75 ml-4 font-bold"
             >
               &times;
             </button>
@@ -148,7 +119,7 @@ export default function ApprovalDeskPage() {
         </section>
 
         {/* Tabs and Invoice Ledger */}
-        <div className="space-y-4 pt-2">
+        <div className="space-y-3 sm:space-y-4 pt-1 sm:pt-2">
           {/* Tabs */}
           <TabsNav
             currentTab={currentTab}
@@ -158,7 +129,7 @@ export default function ApprovalDeskPage() {
             stats={stats}
           />
 
-          {/* Search & Filter Toolbar */}
+          {/* Search & Filter Toolbar with Shadcn Select */}
           <FilterBar
             search={search}
             onSearchChange={setSearch}
@@ -173,23 +144,23 @@ export default function ApprovalDeskPage() {
             <InvoiceTable
               invoices={invoices}
               onSelectInvoice={handleSelectInvoice}
-              selectedInvoiceId={selectedInvoice?.id}
+              selectedInvoiceId={selectedInvoiceId}
               isLoading={isLoading}
             />
           </section>
         </div>
       </main>
 
-      {/* Slide-over Detail Drawer */}
+      {/* Slide-over Detail Drawer with Radix/Shadcn Sheet */}
       <InvoiceDetailDrawer
-        invoice={selectedInvoice}
+        invoice={activeInvoice}
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+        onClose={handleCloseDrawer}
         onStatusUpdate={handleStatusUpdate}
       />
 
       {/* Footer */}
-      <footer className="border-t border-zinc-900 bg-zinc-950/80 py-4 text-center text-xs font-mono text-zinc-600">
+      <footer className="border-t border-zinc-200 dark:border-zinc-900 bg-white/70 dark:bg-zinc-950/80 py-4 text-center text-xs font-mono text-zinc-500 dark:text-zinc-600 transition-colors">
         <p>SLEDGE: The Builders AI Office &bull; Mini Invoice Approval Desk &bull; Built by Mussaddiq Mahmood</p>
       </footer>
     </div>
