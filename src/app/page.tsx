@@ -90,7 +90,7 @@ export default function ApprovalDeskPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col transition-colors duration-150">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col transition-colors duration-150">
       {/* Top Header */}
       <Header
         onSeed={handleSeed}
@@ -99,10 +99,10 @@ export default function ApprovalDeskPage() {
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-4 sm:space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-8 space-y-3.5 sm:space-y-6">
         {/* Toast Alert */}
         {toastMessage && (
-          <div className="p-3 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-mono flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="p-2.5 sm:p-3 rounded-lg bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-mono flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-200">
             <span>{toastMessage}</span>
             <button
               onClick={() => setToastMessage(null)}
@@ -114,12 +114,12 @@ export default function ApprovalDeskPage() {
         )}
 
         {/* Top KPI Stats Bar */}
-        <section aria-label="Key Performance Indicators">
+        <section aria-label="Key Performance Indicators" className="w-full">
           <KPIBar stats={stats} />
         </section>
 
         {/* Tabs and Invoice Ledger */}
-        <div className="space-y-3 sm:space-y-4 pt-1 sm:pt-2">
+        <div className="space-y-2.5 sm:space-y-4 pt-1 sm:pt-2 w-full">
           {/* Tabs */}
           <TabsNav
             currentTab={currentTab}
@@ -140,7 +140,7 @@ export default function ApprovalDeskPage() {
           />
 
           {/* Invoices List / Table */}
-          <section aria-label="Invoice List">
+          <section aria-label="Invoice List" className="w-full">
             <InvoiceTable
               invoices={invoices}
               onSelectInvoice={handleSelectInvoice}
@@ -160,7 +160,7 @@ export default function ApprovalDeskPage() {
       />
 
       {/* Footer */}
-      <footer className="border-t border-zinc-200 dark:border-zinc-900 bg-white/70 dark:bg-zinc-950/80 py-4 text-center text-xs font-mono text-zinc-500 dark:text-zinc-600 transition-colors">
+      <footer className="border-t border-zinc-200 dark:border-zinc-900 bg-white/70 dark:bg-zinc-950/80 py-3.5 sm:py-4 text-center text-[11px] sm:text-xs font-mono text-zinc-500 dark:text-zinc-600 transition-colors px-3">
         <p>SLEDGE: The Builders AI Office &bull; Mini Invoice Approval Desk &bull; Built by Mussaddiq Mahmood</p>
       </footer>
     </div>

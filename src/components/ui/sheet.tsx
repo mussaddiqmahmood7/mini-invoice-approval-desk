@@ -3,7 +3,6 @@
 import * as React from "react";
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { cva, type VariantProps } from "class-variance-authority";
-import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Sheet = SheetPrimitive.Root;
@@ -34,9 +33,9 @@ const sheetVariants = cva(
         top: "inset-x-0 top-0 border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
         bottom:
           "inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-        left: "inset-y-0 left-0 h-full w-full sm:max-w-lg border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left",
+        left: "top-0 left-0 h-[100dvh] max-h-[100dvh] w-full sm:max-w-lg border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left",
         right:
-          "inset-y-0 right-0 h-full w-full sm:max-w-xl md:max-w-2xl border-l border-zinc-200 dark:border-zinc-800 data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
+          "top-0 right-0 h-[100dvh] max-h-[100dvh] w-full sm:max-w-xl md:max-w-2xl border-l border-zinc-200 dark:border-zinc-800 data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right flex flex-col overflow-hidden",
       },
     },
     defaultVariants: {
@@ -100,7 +99,7 @@ const SheetTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Title
     ref={ref}
-    className={cn("text-lg font-bold text-zinc-900 dark:text-zinc-100", className)}
+    className={cn("text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100", className)}
     {...props}
   />
 ));
