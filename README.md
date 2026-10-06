@@ -21,21 +21,31 @@ A production-grade, industrial-aesthetic invoice approval desk designed for mode
 
 ## 🎨 Features & Design System
 
-- **Industrial Builder Aesthetic**: Crafted specifically for the construction tech domain using deep zinc/slate tones (`zinc-950`, `zinc-900`), high-visibility amber accent (`#F59E0B` — *Sledge* signature), and monospaced tabular numerals (`tabular-nums font-mono`) for precision financial accounting.
+- **Industrial Builder Aesthetic (Light & Dark Themes)**:
+  - Supports both dark industrial surfaces (`zinc-950`, `zinc-900`) and high-contrast light builder surfaces (`zinc-50`, `white`), accented by Sledge signature Amber-500 (`#F59E0B`).
+  - Seamless persistence and zero-flicker theme toggle button powered by `next-themes`.
+  - Monospaced tabular numerals (`tabular-nums font-mono`) for precision financial accounting.
+- **Reusable Shadcn UI Primitives**:
+  - **Sheet / Slide-Over Drawer**: Built on Radix UI Dialog primitives with smooth entry (`slide-in-from-right`) and exit (`slide-out-to-right`) transitions, keyboard accessibility (`Escape`), and backdrop fade.
+  - **Select Dropdown**: Built on Radix UI Select primitives for vendor filtering with animated popovers and check indicators.
+  - **Table Components**: Reusable `Table`, `TableHeader`, `TableBody`, `TableRow`, `TableHead`, and `TableCell` primitives.
+- **TanStack Query (React Query v5)**:
+  - Cache management with automatic deduplication and background sync.
+  - **Optimistic Status Transitions**: Instant UI updates when approving or rejecting an invoice with automatic error rollback and cache invalidation.
+- **Mobile Responsive Layout**:
+  - 2x2 compact grid for KPI cards on small viewports.
+  - Full-width slide-over drawer with sticky action header and action buttons.
+  - Adaptive font scaling (`text-sm` down to `text-xs`) on headers and badges.
 - **Top KPI Stats Bar**: Real-time aggregate count and dollar volume metrics across all 4 operational states (`Processing`, `Needs Review`, `Approved`, `Rejected`).
 - **3 Tab Ledger Navigation**:
   - `Processing`: Invoices in intake / OCR / automated extraction pipeline.
   - `Needs review`: Invoices flagged for review, highlighted with amber pulse badges for duplicate conflicts.
   - `Approved & Rejected`: Finalized ledger decisions with audit history.
 - **Search & Vendor Filters**: Instant multi-condition query engine by invoice number, contractor name, and trade vendor dropdown.
-- **Slide-Over Detail View (Drawer)**:
-  - Slide-over drawer displaying contractor details, tax ID, and dates.
-  - **Duplicate Comparison Diff**: High-confidence side-by-side visual diff matching the flagged invoice against the original ledger invoice.
-  - Line items breakdown with quantities, unit rates, and totals.
-  - Chronological audit history timeline detailing transitions, actors, and notes.
-- **Contractor Action Desk**:
-  - **Approve**: Instant one-click approval with audit log recording.
-  - **Reject**: Modal prompt requiring a contractual/audit reason (with pre-configured quick presets for construction change orders and rate discrepancies).
+- **Duplicate Comparison Diff**: High-confidence side-by-side visual diff matching the flagged invoice against the original ledger invoice.
+- **Action Buttons & Modals**:
+  - **Approve**: One-click approval with instant optimistic audit log updating.
+  - **Reject**: Modal prompt requiring a contractual/audit reason (with pre-configured quick presets for change order and rate discrepancies).
 - **1-Click Seed & Reset**: Accessible directly via UI top bar or CLI (`pnpm db:seed`).
 
 ---
