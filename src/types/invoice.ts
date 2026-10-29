@@ -10,24 +10,29 @@ export interface InvoiceWithRelations extends Invoice {
 }
 
 export interface KPIStats {
+  currency?: string | null;
   processingCount: number;
-  processingAmount: number;
+  processingAmount: number | null;
   needsReviewCount: number;
-  needsReviewAmount: number;
+  needsReviewAmount: number | null;
   approvedCount: number;
-  approvedAmount: number;
+  approvedAmount: number | null;
   rejectedCount: number;
-  rejectedAmount: number;
+  rejectedAmount: number | null;
   totalCount: number;
-  totalAmount: number;
+  totalAmount: number | null;
 }
 
 export type TabType = "processing" | "needs_review" | "approved_rejected" | "all";
 
 export const updateStatusSchema = z.object({
   status: z.enum(["APPROVED", "REJECTED"]),
-  note: z.string().optional(),
-  actor: z.string().default("Mussaddiq Mahmood (Project Engineer)"),
+  note: z.string().trim().max(2000).optional(),
+  actor: z.string().trim().min(1).max(100).default("Reviewer"),
+}).superRefine((value, context) => {
+  if (value.status === "REJECTED" && !value.note) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["note"], message: "A rejection reason is required" });
+  }
 });
 
 export type UpdateStatusInput = z.infer<typeof updateStatusSchema>;

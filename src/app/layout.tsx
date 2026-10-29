@@ -4,10 +4,10 @@ import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 
 export const metadata: Metadata = {
-  title: "Sledge | Mini Invoice Approval Desk",
-  description: "Production-grade contractor invoice approval desk for The Builders AI Office",
+  title: "Mini Invoice Approval Desk",
+  description: "A lightweight interface for invoice review, duplicate comparison, and approval history.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/icon.svg",
   },
 };
 

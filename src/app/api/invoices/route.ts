@@ -1,8 +1,9 @@
+import { calculateStats } from "@/lib/stats";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { invoices, invoiceItems, invoiceStatusHistory, type InvoiceStatus } from "@/db/schema";
-import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
-import type { KPIStats, TabType } from "@/types/invoice";
+import { invoices } from "@/db/schema";
+import { and, eq, ilike, inArray, or } from "drizzle-orm";
+import type { TabType } from "@/types/invoice";
 
 export async function GET(request: NextRequest) {
   try {
@@ -58,44 +59,13 @@ export async function GET(request: NextRequest) {
       .select({
         status: invoices.status,
         totalAmount: invoices.totalAmount,
+        currency: invoices.currency,
         vendorName: invoices.vendorName,
       })
       .from(invoices);
 
-    const stats: KPIStats = {
-      processingCount: 0,
-      processingAmount: 0,
-      needsReviewCount: 0,
-      needsReviewAmount: 0,
-      approvedCount: 0,
-      approvedAmount: 0,
-      rejectedCount: 0,
-      rejectedAmount: 0,
-      totalCount: allInvoices.length,
-      totalAmount: 0,
-    };
-
-    const vendorSet = new Set<string>();
-
-    for (const inv of allInvoices) {
-      const amount = parseFloat(inv.totalAmount || "0");
-      stats.totalAmount += amount;
-      vendorSet.add(inv.vendorName);
-
-      if (inv.status === "PROCESSING") {
-        stats.processingCount += 1;
-        stats.processingAmount += amount;
-      } else if (inv.status === "NEEDS_REVIEW") {
-        stats.needsReviewCount += 1;
-        stats.needsReviewAmount += amount;
-      } else if (inv.status === "APPROVED") {
-        stats.approvedCount += 1;
-        stats.approvedAmount += amount;
-      } else if (inv.status === "REJECTED") {
-        stats.rejectedCount += 1;
-        stats.rejectedAmount += amount;
-      }
-    }
+    const stats = calculateStats(allInvoices);
+    const vendorSet = new Set(allInvoices.map((invoice) => invoice.vendorName));
 
     return NextResponse.json({
       success: true,
@@ -104,7 +74,7 @@ export async function GET(request: NextRequest) {
       vendors: Array.from(vendorSet).sort(),
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch invoices";
+    const message = "Failed to fetch invoices";
     console.error("API GET /api/invoices error:", error);
     return NextResponse.json(
       {

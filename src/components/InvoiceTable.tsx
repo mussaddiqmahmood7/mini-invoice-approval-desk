@@ -52,7 +52,7 @@ export function InvoiceTable({
         <TableHeader className="bg-zinc-50 dark:bg-zinc-950/80">
           <TableRow>
             <TableHead className="py-2.5 pl-3 pr-2 sm:pl-6 sm:py-3 text-[10px] sm:text-[11px]">Invoice</TableHead>
-            <TableHead className="px-2 py-2.5 sm:px-3 sm:py-3 text-[10px] sm:text-[11px]">Vendor / Contractor</TableHead>
+            <TableHead className="px-2 py-2.5 sm:px-3 sm:py-3 text-[10px] sm:text-[11px]">Vendor</TableHead>
             <TableHead className="hidden md:table-cell px-3 py-3 text-[10px] sm:text-[11px]">Issue / Due</TableHead>
             <TableHead className="hidden sm:table-cell px-3 py-3 text-center text-[10px] sm:text-[11px]">Items</TableHead>
             <TableHead className="px-2 py-2.5 sm:px-3 sm:py-3 text-right text-[10px] sm:text-[11px]">Amount</TableHead>
@@ -126,7 +126,7 @@ export function InvoiceTable({
                 {/* Total Amount */}
                 <TableCell className="px-2 py-2.5 sm:px-3 sm:py-3.5 text-right">
                   <span className="font-mono font-bold text-xs sm:text-base tabular-nums text-zinc-900 dark:text-zinc-100 tracking-tight whitespace-nowrap">
-                    {formatCurrency(inv.totalAmount)}
+                    {formatCurrency(inv.totalAmount, inv.currency)}
                   </span>
                 </TableCell>
 

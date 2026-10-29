@@ -1,397 +1,60 @@
 import { db } from "./index";
-import { invoices, invoiceItems, invoiceStatusHistory } from "./schema";
+import { invoices, invoiceItems, invoiceStatusHistory, type InvoiceStatus } from "./schema";
 import { sql } from "drizzle-orm";
 
-export async function seedDatabase() {
-  // Clear existing records cleanly
-  await db.execute(sql`TRUNCATE TABLE invoice_status_history, invoice_items, invoices CASCADE;`);
+// Fictional examples covering ordinary purchases, services, and a suspected duplicate.
+const samples: {
+  number: string; vendor: string; status: InvoiceStatus; daysAgo: number;
+  description: string; quantity: number; unitPrice: number; flag?: string; note: string;
+}[] = [
+  { number: "INV-1001", vendor: "Northstar Office Supply", status: "PROCESSING", daysAgo: 2,
+    description: "Office supplies bundle", quantity: 5, unitPrice: 85, note: "Awaiting review of delivery receipt." },
+  { number: "INV-1002", vendor: "Brightside Design Studio", status: "NEEDS_REVIEW", daysAgo: 5,
+    description: "Product design services (hours)", quantity: 24, unitPrice: 125, flag: "REVIEW_REQUIRED", note: "Please confirm the delivered work before approval." },
+  { number: "INV-1002-DUP", vendor: "Brightside Design Studio", status: "NEEDS_REVIEW", daysAgo: 4,
+    description: "Product design services (hours)", quantity: 24, unitPrice: 125, flag: "DUPLICATE_SUSPECTED", note: "Suspected duplicate of INV-1002. Compare before making a decision." },
+  { number: "INV-1003", vendor: "Cloudline Software", status: "PROCESSING", daysAgo: 1,
+    description: "Monthly team software licenses", quantity: 12, unitPrice: 29, note: "Monthly subscription renewal awaiting review." },
+  { number: "INV-1004", vendor: "Summit Logistics", status: "APPROVED", daysAgo: 8,
+    description: "Regional delivery service", quantity: 3, unitPrice: 240, flag: "DELIVERY_CONFIRMED", note: "Delivery receipts verified. Approved for payment." },
+  { number: "INV-1005", vendor: "Greenfield Maintenance", status: "REJECTED", daysAgo: 6,
+    description: "Equipment maintenance (hours)", quantity: 6, unitPrice: 95, flag: "RATE_MISMATCH", note: "The hourly rate differs from the agreed quote. Please submit a corrected invoice." },
+];
 
-  const now = new Date();
-  const daysAgo = (days: number) => new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-  const daysAhead = (days: number) => new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-
-  // 1. Apex Concrete (PROCESSING)
-  const [apex] = await db
-    .insert(invoices)
-    .values({
-      invoiceNumber: "INV-CON-1041",
-      vendorName: "Apex Concrete & Masonry Supply",
-      vendorAddress: "450 Industrial Parkway, Dallas, TX 75201",
-      vendorTaxId: "TX-992014-C",
-      issueDate: daysAgo(5),
-      dueDate: daysAhead(25),
-      currency: "USD",
-      subtotal: "17000.00",
-      taxAmount: "1450.00",
-      totalAmount: "18450.00",
-      status: "PROCESSING",
-      flags: ["PENDING_THREE_WAY_MATCH"],
-      notes: "Commercial slab pour for Building B foundation. Delivery tickets #412-#419 attached.",
-    })
-    .returning();
-
-  await db.insert(invoiceItems).values([
-    {
-      invoiceId: apex.id,
-      description: "4000 PSI Ready-Mix Foundation Concrete (45 cu yds)",
-      quantity: "45.00",
-      unitPrice: "185.00",
-      amount: "8325.00",
-    },
-    {
-      invoiceId: apex.id,
-      description: "Grade 60 #4 Rebar Bundles 20ft (35 bundles)",
-      quantity: "35.00",
-      unitPrice: "125.00",
-      amount: "4375.00",
-    },
-    {
-      invoiceId: apex.id,
-      description: "Concrete Pumper Truck 38M Boom Service (8 hrs)",
-      quantity: "8.00",
-      unitPrice: "350.00",
-      amount: "2800.00",
-    },
-    {
-      invoiceId: apex.id,
-      description: "Curing Compound & Vapor Barrier Sealant",
-      quantity: "10.00",
-      unitPrice: "150.00",
-      amount: "1500.00",
-    },
-  ]);
-
-  await db.insert(invoiceStatusHistory).values({
-    invoiceId: apex.id,
-    fromStatus: null,
-    toStatus: "PROCESSING",
-    actor: "Sledge AI Pipeline",
-    note: "Automated OCR extraction completed with 99.4% confidence score.",
-    createdAt: daysAgo(5),
+export async function seedDatabase({ reset = false } = {}) {
+  return db.transaction(async (tx) => {
+    const existing = await tx.select({ id: invoices.id }).from(invoices).limit(1);
+    if (existing.length && !reset) throw new Error("Database already contains invoices. Use pnpm db:seed --reset only if you intend to replace all invoice data.");
+    if (reset) await tx.execute(sql`TRUNCATE TABLE invoice_status_history, invoice_items, invoices CASCADE`);
+    const now = Date.now();
+    let originalId: string | undefined;
+    for (const sample of samples) {
+      const issueDate = new Date(now - sample.daysAgo * 86400000);
+      const subtotal = sample.quantity * sample.unitPrice;
+      const tax = subtotal * 0.1;
+      const [invoice] = await tx.insert(invoices).values({
+        invoiceNumber: sample.number, vendorName: sample.vendor, issueDate,
+        dueDate: new Date(issueDate.getTime() + 30 * 86400000), currency: "USD",
+        subtotal: subtotal.toFixed(2), taxAmount: tax.toFixed(2), totalAmount: (subtotal + tax).toFixed(2),
+        status: sample.status, flags: sample.flag ? [sample.flag] : [], notes: sample.note,
+        duplicateOfId: sample.flag === "DUPLICATE_SUSPECTED" ? originalId : null,
+        createdAt: issueDate,
+      }).returning();
+      if (sample.number === "INV-1002") originalId = invoice.id;
+      await tx.insert(invoiceItems).values({
+        invoiceId: invoice.id, description: sample.description,
+        quantity: sample.quantity.toFixed(2), unitPrice: sample.unitPrice.toFixed(2), amount: subtotal.toFixed(2),
+      });
+      await tx.insert(invoiceStatusHistory).values({
+        invoiceId: invoice.id, fromStatus: null, toStatus: "PROCESSING", actor: "Demo import",
+        note: "Fictional invoice imported for demonstration.", createdAt: issueDate,
+      });
+      if (sample.status !== "PROCESSING") await tx.insert(invoiceStatusHistory).values({
+        invoiceId: invoice.id, fromStatus: "PROCESSING", toStatus: sample.status,
+        actor: sample.status === "NEEDS_REVIEW" ? "Demo review queue" : "Demo reviewer",
+        note: sample.note, createdAt: new Date(issueDate.getTime() + 3600000),
+      });
+    }
+    return { totalInvoices: samples.length, breakdown: { processing: 2, needsReview: 2, approved: 1, rejected: 1 } };
   });
-
-  // 2. Titan Structural Steel Corp (NEEDS_REVIEW - Original Invoice)
-  const [titanOriginal] = await db
-    .insert(invoices)
-    .values({
-      invoiceNumber: "INV-STL-2094",
-      vendorName: "Titan Structural Steel Fabricators",
-      vendorAddress: "1200 Foundry Way, Pittsburgh, PA 15201",
-      vendorTaxId: "PA-449102-S",
-      issueDate: daysAgo(12),
-      dueDate: daysAhead(18),
-      currency: "USD",
-      subtotal: "39000.00",
-      taxAmount: "3800.00",
-      totalAmount: "42800.00",
-      status: "NEEDS_REVIEW",
-      flags: ["POTENTIAL_DUPLICATE_SOURCE"],
-      notes: "Heavy wide-flange steel framing for levels 3 & 4. Mill test reports verified.",
-    })
-    .returning();
-
-  await db.insert(invoiceItems).values([
-    {
-      invoiceId: titanOriginal.id,
-      description: "W14x90 ASTM A992 Wide Flange Steel Beams (24 tons)",
-      quantity: "24.00",
-      unitPrice: "1250.00",
-      amount: "30000.00",
-    },
-    {
-      invoiceId: titanOriginal.id,
-      description: "Structural Shop Primer Coating & Ultrasonic Testing",
-      quantity: "1.00",
-      unitPrice: "4500.00",
-      amount: "4500.00",
-    },
-    {
-      invoiceId: titanOriginal.id,
-      description: "Heavy Crane Offloading & Rigging Staging (10 hrs)",
-      quantity: "10.00",
-      unitPrice: "450.00",
-      amount: "4500.00",
-    },
-  ]);
-
-  await db.insert(invoiceStatusHistory).values([
-    {
-      invoiceId: titanOriginal.id,
-      fromStatus: null,
-      toStatus: "PROCESSING",
-      actor: "Sledge AI Pipeline",
-      note: "Ingested from vendor portal electronic submission.",
-      createdAt: daysAgo(12),
-    },
-    {
-      invoiceId: titanOriginal.id,
-      fromStatus: "PROCESSING",
-      toStatus: "NEEDS_REVIEW",
-      actor: "Sledge Anomaly Guard",
-      note: "Subsequent duplicate invoice detected in billing cycle. Review required.",
-      createdAt: daysAgo(10),
-    },
-  ]);
-
-  // 3. Titan Structural Steel Corp (NEEDS_REVIEW - Exact Duplicate flagged)
-  const [titanDuplicate] = await db
-    .insert(invoices)
-    .values({
-      invoiceNumber: "INV-STL-2094-DUP",
-      vendorName: "Titan Structural Steel Fabricators",
-      vendorAddress: "1200 Foundry Way, Pittsburgh, PA 15201",
-      vendorTaxId: "PA-449102-S",
-      issueDate: daysAgo(10),
-      dueDate: daysAhead(20),
-      currency: "USD",
-      subtotal: "39000.00",
-      taxAmount: "3800.00",
-      totalAmount: "42800.00",
-      status: "NEEDS_REVIEW",
-      flags: ["DUPLICATE_SUSPECTED", "HOLD_PAYMENT"],
-      duplicateOfId: titanOriginal.id,
-      notes: "AUTOMATED ALERT: Exact duplicate match detected against INV-STL-2094. Same vendor, identical line items, and identical total ($42,800.00).",
-    })
-    .returning();
-
-  await db.insert(invoiceItems).values([
-    {
-      invoiceId: titanDuplicate.id,
-      description: "W14x90 ASTM A992 Wide Flange Steel Beams (24 tons)",
-      quantity: "24.00",
-      unitPrice: "1250.00",
-      amount: "30000.00",
-    },
-    {
-      invoiceId: titanDuplicate.id,
-      description: "Structural Shop Primer Coating & Ultrasonic Testing",
-      quantity: "1.00",
-      unitPrice: "4500.00",
-      amount: "4500.00",
-    },
-    {
-      invoiceId: titanDuplicate.id,
-      description: "Heavy Crane Offloading & Rigging Staging (10 hrs)",
-      quantity: "10.00",
-      unitPrice: "450.00",
-      amount: "4500.00",
-    },
-  ]);
-
-  await db.insert(invoiceStatusHistory).values([
-    {
-      invoiceId: titanDuplicate.id,
-      fromStatus: null,
-      toStatus: "PROCESSING",
-      actor: "Sledge AI Pipeline",
-      note: "Ingested via accounts payable inbound email attachment.",
-      createdAt: daysAgo(10),
-    },
-    {
-      invoiceId: titanDuplicate.id,
-      fromStatus: "PROCESSING",
-      toStatus: "NEEDS_REVIEW",
-      actor: "Sledge AI Duplicate Engine",
-      note: "CRITICAL: 100% itemization, quantity, and dollar amount match with existing INV-STL-2094. Automated hold placed.",
-      createdAt: daysAgo(10),
-    },
-  ]);
-
-  // 4. VoltWorks Commercial Electrical (PROCESSING)
-  const [voltworks] = await db
-    .insert(invoices)
-    .values({
-      invoiceNumber: "INV-ELC-3105",
-      vendorName: "VoltWorks Commercial Electrical Inc",
-      vendorAddress: "800 Ampere Blvd, Phoenix, AZ 85034",
-      vendorTaxId: "AZ-330192-E",
-      issueDate: daysAgo(3),
-      dueDate: daysAhead(27),
-      currency: "USD",
-      subtotal: "8660.00",
-      taxAmount: "570.00",
-      totalAmount: "9230.00",
-      status: "PROCESSING",
-      flags: ["PENDING_ELECTRICAL_INSPECTION"],
-      notes: "Main service distribution panel and feeder runs for sub-level parking deck.",
-    })
-    .returning();
-
-  await db.insert(invoiceItems).values([
-    {
-      invoiceId: voltworks.id,
-      description: "480V 3-Phase 800A Main Distribution Switchboard",
-      quantity: "1.00",
-      unitPrice: "6200.00",
-      amount: "6200.00",
-    },
-    {
-      invoiceId: voltworks.id,
-      description: "EMT Conduit 2-Inch Thinwall Bundles (2000 LF)",
-      quantity: "20.00",
-      unitPrice: "85.00",
-      amount: "1700.00",
-    },
-    {
-      invoiceId: voltworks.id,
-      description: "Master Electrician Conduit Pull & Termination (8 hrs)",
-      quantity: "8.00",
-      unitPrice: "95.00",
-      amount: "760.00",
-    },
-  ]);
-
-  await db.insert(invoiceStatusHistory).values({
-    invoiceId: voltworks.id,
-    fromStatus: null,
-    toStatus: "PROCESSING",
-    actor: "Sledge AI Pipeline",
-    note: "OCR parsing completed. Subcontractor insurance certificate verified.",
-    createdAt: daysAgo(3),
-  });
-
-  // 5. Bulldog Earthmoving (APPROVED)
-  const [bulldog] = await db
-    .insert(invoices)
-    .values({
-      invoiceNumber: "INV-EXC-4012",
-      vendorName: "Bulldog Earthmoving & Excavation LLC",
-      vendorAddress: "310 Quarry Road, Denver, CO 80216",
-      vendorTaxId: "CO-771890-B",
-      issueDate: daysAgo(15),
-      dueDate: daysAhead(15),
-      currency: "USD",
-      subtotal: "13320.00",
-      taxAmount: "800.00",
-      totalAmount: "14120.00",
-      status: "APPROVED",
-      flags: ["PO_MATCHED", "DRAW_SCHEDULE_CLEARED"],
-      notes: "Mass grading and stormwater detention basin excavation per civil plans C-102.",
-    })
-    .returning();
-
-  await db.insert(invoiceItems).values([
-    {
-      invoiceId: bulldog.id,
-      description: "CAT 336 Hydraulic Excavator Mass Earthmoving (40 hrs)",
-      quantity: "40.00",
-      unitPrice: "210.00",
-      amount: "8400.00",
-    },
-    {
-      invoiceId: bulldog.id,
-      description: "Offsite Clean Fill Hauling (30 tri-axle loads)",
-      quantity: "30.00",
-      unitPrice: "150.00",
-      amount: "4500.00",
-    },
-    {
-      invoiceId: bulldog.id,
-      description: "Laser Grade Verification & Compaction Testing",
-      quantity: "1.00",
-      unitPrice: "420.00",
-      amount: "420.00",
-    },
-  ]);
-
-  await db.insert(invoiceStatusHistory).values([
-    {
-      invoiceId: bulldog.id,
-      fromStatus: null,
-      toStatus: "PROCESSING",
-      actor: "Sledge AI Pipeline",
-      note: "Initial intake from field tablet submission.",
-      createdAt: daysAgo(15),
-    },
-    {
-      invoiceId: bulldog.id,
-      fromStatus: "PROCESSING",
-      toStatus: "NEEDS_REVIEW",
-      actor: "Sledge Threshold Engine",
-      note: "Standard review for invoices exceeding $10,000 threshold.",
-      createdAt: daysAgo(14),
-    },
-    {
-      invoiceId: bulldog.id,
-      fromStatus: "NEEDS_REVIEW",
-      toStatus: "APPROVED",
-      actor: "Mussaddiq Mahmood (Project Engineer)",
-      note: "Soil compaction certificates and laser survey reports verified. Approved for immediate payment draw.",
-      createdAt: daysAgo(13),
-    },
-  ]);
-
-  // 6. Keystone Plumbing (REJECTED)
-  const [keystone] = await db
-    .insert(invoices)
-    .values({
-      invoiceNumber: "INV-PLM-5088",
-      vendorName: "Keystone Commercial Plumbing",
-      vendorAddress: "620 Pipeline St, Chicago, IL 60607",
-      vendorTaxId: "IL-882310-P",
-      issueDate: daysAgo(8),
-      dueDate: daysAhead(22),
-      currency: "USD",
-      subtotal: "6300.00",
-      taxAmount: "450.00",
-      totalAmount: "6750.00",
-      status: "REJECTED",
-      flags: ["UNAUTHORIZED_OVERTIME_RATE"],
-      notes: "Sanitary DWV rough-in piping for Ground Floor Core A & B.",
-    })
-    .returning();
-
-  await db.insert(invoiceItems).values([
-    {
-      invoiceId: keystone.id,
-      description: "Cast Iron DWV Sanitary Rough-In Piping 4-inch (300 LF)",
-      quantity: "300.00",
-      unitPrice: "15.50",
-      amount: "4650.00",
-    },
-    {
-      invoiceId: keystone.id,
-      description: "Overtime Emergency Water Main Tie-In Premium (10 hrs)",
-      quantity: "10.00",
-      unitPrice: "165.00",
-      amount: "1650.00",
-    },
-  ]);
-
-  await db.insert(invoiceStatusHistory).values([
-    {
-      invoiceId: keystone.id,
-      fromStatus: null,
-      toStatus: "PROCESSING",
-      actor: "Sledge AI Pipeline",
-      note: "Inbound invoice parsed from subcontractor PDF.",
-      createdAt: daysAgo(8),
-    },
-    {
-      invoiceId: keystone.id,
-      fromStatus: "PROCESSING",
-      toStatus: "NEEDS_REVIEW",
-      actor: "Sledge Rate Compliance",
-      note: "Emergency overtime rate ($165/hr) exceeds master subcontractor rate card ($115/hr). Flagged.",
-      createdAt: daysAgo(7),
-    },
-    {
-      invoiceId: keystone.id,
-      fromStatus: "NEEDS_REVIEW",
-      toStatus: "REJECTED",
-      actor: "Mussaddiq Mahmood (Project Engineer)",
-      note: "Unauthorized overtime rate applied. Re-bill with pre-approved straight time or submit signed change order.",
-      createdAt: daysAgo(6),
-    },
-  ]);
-
-  return {
-    totalInvoices: 6,
-    breakdown: {
-      processing: 2,
-      needsReview: 2,
-      approved: 1,
-      rejected: 1,
-    },
-  };
 }

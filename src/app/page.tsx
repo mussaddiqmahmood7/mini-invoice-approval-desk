@@ -12,7 +12,6 @@ import {
   useInvoicesQuery,
   useInvoiceDetailQuery,
   useUpdateInvoiceStatus,
-  useSeedDatabase,
 } from "@/hooks/useInvoices";
 
 const INITIAL_STATS: KPIStats = {
@@ -37,7 +36,7 @@ export default function ApprovalDeskPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // TanStack Query for invoices ledger
-  const { data: invoicesResponse, isLoading } = useInvoicesQuery(
+  const { data: invoicesResponse, isLoading, isError, refetch } = useInvoicesQuery(
     currentTab,
     search,
     selectedVendor
@@ -48,7 +47,6 @@ export default function ApprovalDeskPage() {
 
   // Mutations
   const updateStatusMutation = useUpdateInvoiceStatus();
-  const seedMutation = useSeedDatabase();
 
   const invoices = invoicesResponse?.data || [];
   const stats = invoicesResponse?.stats || INITIAL_STATS;
@@ -81,22 +79,14 @@ export default function ApprovalDeskPage() {
       setTimeout(() => setToastMessage(null), 4000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to update status";
-      alert("Error updating invoice: " + message);
+      throw new Error(message);
     }
-  };
-
-  const handleSeed = async () => {
-    await seedMutation.mutateAsync();
   };
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col transition-colors duration-150">
       {/* Top Header */}
-      <Header
-        onSeed={handleSeed}
-        isSeeding={seedMutation.isPending}
-        totalInvoices={stats.totalCount}
-      />
+      <Header />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-8 space-y-3.5 sm:space-y-6">
@@ -141,12 +131,17 @@ export default function ApprovalDeskPage() {
 
           {/* Invoices List / Table */}
           <section aria-label="Invoice List" className="w-full">
-            <InvoiceTable
+            {isError ? (
+              <div role="alert" className="rounded-xl border border-rose-500/30 p-6 text-sm text-center">
+                <p>Unable to load invoices. Check the database connection and try again.</p>
+                <button onClick={() => void refetch()} className="mt-3 underline underline-offset-4">Try again</button>
+              </div>
+            ) : <InvoiceTable
               invoices={invoices}
               onSelectInvoice={handleSelectInvoice}
               selectedInvoiceId={selectedInvoiceId}
               isLoading={isLoading}
-            />
+            />}
           </section>
         </div>
       </main>
@@ -161,7 +156,7 @@ export default function ApprovalDeskPage() {
 
       {/* Footer */}
       <footer className="border-t border-zinc-200 dark:border-zinc-900 bg-white/70 dark:bg-zinc-950/80 py-3.5 sm:py-4 text-center text-[11px] sm:text-xs font-mono text-zinc-500 dark:text-zinc-600 transition-colors px-3">
-        <p>SLEDGE: The Builders AI Office &bull; Mini Invoice Approval Desk &bull; Built by Mussaddiq Mahmood</p>
+        <p>Mini Invoice Approval Desk &bull; Built by <a className="underline underline-offset-4" href="https://github.com/mussaddiqmahmood7">Mussaddiq Mahmood</a></p>
       </footer>
     </div>
   );

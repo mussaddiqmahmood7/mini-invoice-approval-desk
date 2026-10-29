@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { invoices } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -13,6 +14,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json({ success: false, error: "Invalid invoice ID" }, { status: 400 });
+    }
 
     const invoice = await db.query.invoices.findFirst({
       where: eq(invoices.id, id),
@@ -41,7 +45,7 @@ export async function GET(
       data: invoice,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch invoice details";
+    const message = "Failed to fetch invoice details";
     console.error("API GET /api/invoices/[id] error:", error);
     return NextResponse.json(
       { success: false, error: message },

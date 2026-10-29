@@ -5,11 +5,11 @@ import { seedDatabase } from "../src/db/seed-data";
 import { client } from "../src/db/index";
 
 async function main() {
-  console.log("🔨 Sledge: Seeding construction invoices database...");
+  console.log("Seeding fictional sample invoices...");
   const startTime = Date.now();
 
   try {
-    const result = await seedDatabase();
+    const result = await seedDatabase({ reset: process.argv.includes("--reset") });
     const duration = Date.now() - startTime;
     console.log(`✅ Database successfully seeded in ${duration}ms!`);
     console.log(`   - Total Invoices: ${result.totalInvoices}`);
@@ -19,7 +19,7 @@ async function main() {
     console.log(`   - Rejected: ${result.breakdown.rejected}`);
   } catch (error) {
     console.error("❌ Failed to seed database:", error);
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     await client.end();
   }

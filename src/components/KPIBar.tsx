@@ -17,7 +17,7 @@ export function KPIBar({ stats }: KPIBarProps) {
       borderColor: "border-sky-500/20 dark:border-sky-500/20",
       accentBg: "bg-sky-500/10",
       textColor: "text-sky-600 dark:text-sky-400",
-      subtext: "OCR intake & PO verification",
+      subtext: "Awaiting review or processing",
     },
     {
       title: "Needs Review",
@@ -38,7 +38,7 @@ export function KPIBar({ stats }: KPIBarProps) {
       borderColor: "border-emerald-500/20 dark:border-emerald-500/20",
       accentBg: "bg-emerald-500/10",
       textColor: "text-emerald-600 dark:text-emerald-400",
-      subtext: "Cleared for contractor payment",
+      subtext: "Ready for payment",
     },
     {
       title: "Rejected",
@@ -72,7 +72,7 @@ export function KPIBar({ stats }: KPIBarProps) {
 
             <div className="mt-1.5 sm:mt-3 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
               <div className="text-sm sm:text-2xl font-bold font-mono tabular-nums text-zinc-900 dark:text-zinc-100 tracking-tight truncate">
-                {formatCurrency(card.amount)}
+                {stats.currency === null ? "Multiple currencies" : formatCurrency(card.amount, stats.currency ?? "USD")}
               </div>
               <div className="self-start sm:self-auto inline-flex items-center px-1.5 py-0.5 rounded text-[9px] sm:text-xs font-mono font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 whitespace-nowrap">
                 {card.count} {card.count === 1 ? "inv" : "invs"}

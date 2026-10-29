@@ -1,107 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { invoices, invoiceStatusHistory, type InvoiceStatus } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { invoices, invoiceItems, invoiceStatusHistory } from "@/db/schema";
+import { desc, eq } from "drizzle-orm";
+import { z } from "zod";
 import { updateStatusSchema } from "@/types/invoice";
 
-interface RouteParams {
-  params: Promise<{ id: string }>;
-}
+interface RouteParams { params: Promise<{ id: string }> }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const rawBody = await request.json();
-
-    // Validate request body
-    const parseResult = updateStatusSchema.safeParse(rawBody);
-    if (!parseResult.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid payload",
-          details: parseResult.error.flatten(),
-        },
-        { status: 400 }
-      );
+    if (!z.string().uuid().safeParse(id).success) {
+      return NextResponse.json({ success: false, error: "Invalid invoice ID" }, { status: 400 });
     }
-
-    const { status: targetStatus, note, actor } = parseResult.data;
-
-    // Verify invoice exists
-    const currentInvoice = await db.query.invoices.findFirst({
-      where: eq(invoices.id, id),
-    });
-
-    if (!currentInvoice) {
-      return NextResponse.json(
-        { success: false, error: "Invoice not found" },
-        { status: 404 }
-      );
+    let rawBody: unknown;
+    try {
+      rawBody = await request.json();
+    } catch {
+      return NextResponse.json({ success: false, error: "Invalid JSON payload" }, { status: 400 });
     }
-
-    const fromStatus = currentInvoice.status as InvoiceStatus;
-    const toStatus = targetStatus as InvoiceStatus;
-
-    // Reject transitions to the same status
-    if (fromStatus === toStatus) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Invoice is already in ${toStatus} status`,
-        },
-        { status: 400 }
-      );
+    const parsed = updateStatusSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json({ success: false, error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 });
     }
-
-    // Execute atomic update & history logging
-    const updatedInvoice = await db.transaction(async (tx) => {
-      const [updated] = await tx
-        .update(invoices)
-        .set({
-          status: toStatus,
-          updatedAt: new Date(),
-        })
-        .where(eq(invoices.id, id))
-        .returning();
-
+    const { status, note, actor } = parsed.data;
+    // Lock before reading the previous state so concurrent decisions have accurate history.
+    const result = await db.transaction(async (tx) => {
+      const [current] = await tx.select().from(invoices).where(eq(invoices.id, id)).for("update");
+      if (!current) return { error: "Invoice not found", code: 404 };
+      if (current.status === status) return { error: `Invoice is already in ${status} status`, code: 400 };
+      const [updated] = await tx.update(invoices).set({ status, updatedAt: new Date() }).where(eq(invoices.id, id)).returning();
       await tx.insert(invoiceStatusHistory).values({
-        invoiceId: id,
-        fromStatus,
-        toStatus,
-        actor: actor || "Mussaddiq Mahmood (Project Engineer)",
-        note: note || (toStatus === "APPROVED" ? "Approved by Project Engineer" : "Rejected"),
+        invoiceId: id, fromStatus: current.status, toStatus: status, actor,
+        note: note || "Approved for payment",
       });
-
-      return updated;
+      const items = await tx.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, id));
+      const statusHistory = await tx.select().from(invoiceStatusHistory).where(eq(invoiceStatusHistory.invoiceId, id)).orderBy(desc(invoiceStatusHistory.createdAt));
+      const [duplicateOf] = updated.duplicateOfId
+        ? await tx.select().from(invoices).where(eq(invoices.id, updated.duplicateOfId))
+        : [];
+      return { data: { ...updated, items, statusHistory, duplicateOf: duplicateOf ?? null } };
     });
-
-    // Fetch refreshed invoice with full relations
-    const fullInvoice = await db.query.invoices.findFirst({
-      where: eq(invoices.id, id),
-      with: {
-        items: true,
-        statusHistory: {
-          orderBy: (history, { desc }) => [desc(history.createdAt)],
-        },
-        duplicateOf: true,
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: `Invoice status successfully updated from ${fromStatus} to ${toStatus}`,
-      data: fullInvoice || updatedInvoice,
-    });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to update invoice status";
-    console.error("API PATCH /api/invoices/[id]/status error:", error);
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 }
-    );
+    if ("error" in result) return NextResponse.json({ success: false, error: result.error }, { status: result.code });
+    return NextResponse.json({ success: true, message: "Invoice status updated", data: result.data });
+  } catch (error) {
+    console.error("Invoice status update failed:", error);
+    return NextResponse.json({ success: false, error: "Failed to update invoice status" }, { status: 500 });
   }
 }

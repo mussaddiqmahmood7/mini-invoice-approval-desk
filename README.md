@@ -1,267 +1,138 @@
-# 🔨 Sledge — Mini Invoice Approval Desk
+# Mini Invoice Approval Desk
 
-> **The Builders AI Office** | Full Stack Engineering Assignment  
-> Built by **Mussaddiq Mahmood** (`mussaddiqmahmood7@gmail.com`)
+A lightweight, self-hosted interface for reviewing invoices, comparing suspected duplicates, and recording approval decisions.
 
-A production-grade, industrial-aesthetic invoice approval desk designed for modern construction builders and subcontractors. Built with **Next.js 15 (App Router)**, **TypeScript**, **Tailwind CSS**, and **Drizzle ORM** over **PostgreSQL**.
+Built with **Next.js · TypeScript · PostgreSQL · Drizzle · TanStack Query · Tailwind CSS**.
 
----
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/mussaddiqmahmood7/mini-invoice-approval-desk/actions/workflows/ci.yml/badge.svg)](https://github.com/mussaddiqmahmood7/mini-invoice-approval-desk/actions/workflows/ci.yml)
 
-## 🏗️ Table of Contents
+![Invoice review queue in dark mode, showing status totals, vendor filtering, and fictional invoices](docs/images/overview.png)
 
-1. [Features & Design System](#-features--design-system)
-2. [Database Schema & Architecture](#-database-schema--architecture)
-3. [Invoice Status Lifecycle](#-invoice-status-lifecycle)
-4. [REST API Reference](#-rest-api-reference)
-5. [Sample Construction Invoices & Duplicate Handling](#-sample-construction-invoices--duplicate-handling)
-6. [Quickstart & Setup Instructions](#-quickstart--setup-instructions)
-7. [Testing & Verification](#-testing--verification)
+## Features
 
----
+- Processing, needs-review, and completed queues with vendor filtering and invoice search.
+- Invoice details, line items, dates, notes, and decision history in a slide-over panel.
+- Side-by-side comparison of a suspected duplicate's number, vendor, amount, and date.
+- Approvals and rejections, with a required rejection reason and transactional history writes.
+- Currency-aware invoice amounts. When records use different currencies, aggregate monetary totals are omitted rather than added together.
+- Light and dark themes, responsive layouts, and keyboard-accessible dialogs.
+- Six fictional sample invoices across supplies, design, software, logistics, and maintenance.
 
-## 🎨 Features & Design System
+![Invoice details with a suspected duplicate comparison and review actions](docs/images/invoice-detail.png)
 
-- **Industrial Builder Aesthetic (Light & Dark Themes)**:
-  - Supports both dark industrial surfaces (`zinc-950`, `zinc-900`) and high-contrast light builder surfaces (`zinc-50`, `white`), accented by Sledge signature Amber-500 (`#F59E0B`).
-  - Seamless persistence and zero-flicker theme toggle button powered by `next-themes`.
-  - Monospaced tabular numerals (`tabular-nums font-mono`) for precision financial accounting.
-- **Reusable Shadcn UI Primitives**:
-  - **Sheet / Slide-Over Drawer**: Built on Radix UI Dialog primitives with smooth entry (`slide-in-from-right`) and exit (`slide-out-to-right`) transitions, keyboard accessibility (`Escape`), and backdrop fade.
-  - **Select Dropdown**: Built on Radix UI Select primitives for vendor filtering with animated popovers and check indicators.
-  - **Table Components**: Reusable `Table`, `TableHeader`, `TableBody`, `TableRow`, `TableHead`, and `TableCell` primitives.
-- **TanStack Query (React Query v5)**:
-  - Cache management with automatic deduplication and background sync.
-  - **Optimistic Status Transitions**: Instant UI updates when approving or rejecting an invoice with automatic error rollback and cache invalidation.
-- **Mobile Responsive Layout**:
-  - 2x2 compact grid for KPI cards on small viewports.
-  - Full-width slide-over drawer with sticky action header and action buttons.
-  - Adaptive font scaling (`text-sm` down to `text-xs`) on headers and badges.
-- **Top KPI Stats Bar**: Real-time aggregate count and dollar volume metrics across all 4 operational states (`Processing`, `Needs Review`, `Approved`, `Rejected`).
-- **3 Tab Ledger Navigation**:
-  - `Processing`: Invoices in intake / OCR / automated extraction pipeline.
-  - `Needs review`: Invoices flagged for review, highlighted with amber pulse badges for duplicate conflicts.
-  - `Approved & Rejected`: Finalized ledger decisions with audit history.
-- **Search & Vendor Filters**: Instant multi-condition query engine by invoice number, contractor name, and trade vendor dropdown.
-- **Duplicate Comparison Diff**: High-confidence side-by-side visual diff matching the flagged invoice against the original ledger invoice.
-- **Action Buttons & Modals**:
-  - **Approve**: One-click approval with instant optimistic audit log updating.
-  - **Reject**: Modal prompt requiring a contractual/audit reason (with pre-configured quick presets for change order and rate discrepancies).
-- **1-Click Seed & Reset**: Accessible directly via UI top bar or CLI (`pnpm db:seed`).
+## Quickstart
 
----
+Requires **Node.js 22+**, **pnpm 12.14.0**, and PostgreSQL. Docker Compose is the easiest way to run the included local database.
 
-## 🗄️ Database Schema & Architecture
+```bash
+git clone https://github.com/mussaddiqmahmood7/mini-invoice-approval-desk.git
+cd mini-invoice-approval-desk
 
-The database schema is managed using **Drizzle ORM** with PostgreSQL.
+corepack enable
+pnpm install
+cp .env.example .env
 
-```mermaid
-erDiagram
-    invoices ||--o{ invoice_items : "contains"
-    invoices ||--o{ invoice_status_history : "records"
-    invoices ||--o| invoices : "duplicate_of"
-
-    invoices {
-        uuid id PK
-        varchar invoice_number UK
-        varchar vendor_name
-        text vendor_address
-        varchar vendor_tax_id
-        timestamp issue_date
-        timestamp due_date
-        varchar currency
-        numeric subtotal
-        numeric tax_amount
-        numeric total_amount
-        varchar status
-        jsonb flags
-        uuid duplicate_of_id FK
-        text notes
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    invoice_items {
-        uuid id PK
-        uuid invoice_id FK
-        text description
-        numeric quantity
-        numeric unit_price
-        numeric amount
-        timestamp created_at
-    }
-
-    invoice_status_history {
-        uuid id PK
-        uuid invoice_id FK
-        varchar from_status
-        varchar to_status
-        varchar actor
-        text note
-        timestamp created_at
-    }
+docker compose up -d --wait
+pnpm db:migrate
+pnpm db:seed
+pnpm dev
 ```
 
-### Table Breakdown
+Open [localhost:3000](http://localhost:3000). The sample dataset has two processing invoices, two awaiting review (including a suspected duplicate), one approved, and one rejected.
 
-1. **`invoices`**:
-   - `id`: UUID Primary Key (`gen_random_uuid()`).
-   - `invoice_number`: Unique invoice identifier (e.g., `INV-STL-2094`).
-   - `vendor_name`: Subcontractor or trade supplier name.
-   - `duplicate_of_id`: **Self-referencing foreign key** pointing back to `invoices.id`. Enabled with `ON DELETE SET NULL`.
-   - `flags`: JSONB array storing machine-readable tags (e.g., `["DUPLICATE_SUSPECTED"]`, `["UNAUTHORIZED_OVERTIME_RATE"]`).
-   - `status`: String enum (`PROCESSING`, `NEEDS_REVIEW`, `APPROVED`, `REJECTED`).
-2. **`invoice_items`**:
-   - `invoice_id`: Foreign key with `ON DELETE CASCADE`.
-   - Itemized descriptions, quantities, unit prices, and extended amounts.
-3. **`invoice_status_history`**:
-   - `invoice_id`: Foreign key with `ON DELETE CASCADE`.
-   - Immutable audit trail tracking every transition from `from_status` to `to_status`, timestamp, actor, and reason.
+If you already have PostgreSQL, skip Docker and set `DATABASE_URL` in `.env` before running the migration. Use the connection string and SSL settings supplied by your database provider.
 
----
-
-## 🔄 Invoice Status Lifecycle
-
-```mermaid
-stateDiagram-v2
-    [*] --> PROCESSING: OCR Intake / Ingestion
-    PROCESSING --> NEEDS_REVIEW: Anomaly / Duplicate / Threshold Exceeded
-    PROCESSING --> APPROVED: Auto-match PO & Draw Cleared
-    PROCESSING --> REJECTED: Contract Discrepancy
-    NEEDS_REVIEW --> APPROVED: Engineer Verifies Daily Logs
-    NEEDS_REVIEW --> REJECTED: Engineer Flags Duplicate / Unauthorized Rate
+```env
+DATABASE_URL="postgres://postgres:postgrespassword@localhost:5433/invoice_desk"
 ```
 
-### Transition Guarantees
-- Every update to `invoices.status` executes inside an **atomic database transaction**.
-- A new record in `invoice_status_history` is written concurrently to maintain a 100% verifiable audit trail.
-- Redundant transitions (e.g., attempting to approve an already approved invoice) are rejected with HTTP 400.
+These credentials are for local development. Existing installations can keep their existing `DATABASE_URL`; no schema migration is introduced by the generic branding update.
 
----
+### Sample data
 
-## 🔌 REST API Reference
+`pnpm db:seed` only seeds an empty invoice database. To deliberately replace **all invoices, line items, and invoice history**, run:
 
-### 1. List Invoices with Aggregates
-- **Endpoint**: `GET /api/invoices`
-- **Query Parameters**:
-  - `tab`: `processing` | `needs_review` | `approved_rejected` | `all`
-  - `search`: Filter by invoice number or vendor name (case-insensitive)
-  - `vendor`: Filter by specific contractor name
-- **Response**:
-  ```json
-  {
-    "success": true,
-    "data": [ /* invoices with items and statusHistory */ ],
-    "stats": {
-      "processingCount": 2,
-      "processingAmount": 27680,
-      "needsReviewCount": 2,
-      "needsReviewAmount": 85600,
-      "approvedCount": 1,
-      "approvedAmount": 14120,
-      "rejectedCount": 1,
-      "rejectedAmount": 6750,
-      "totalCount": 6,
-      "totalAmount": 134150
-    },
-    "vendors": [ "Apex Concrete & Masonry Supply", "Titan Structural Steel Fabricators", ... ]
-  }
-  ```
+```bash
+pnpm db:seed --reset
+```
 
-### 2. Get Invoice Detail & Duplicate Comparison
-- **Endpoint**: `GET /api/invoices/:id`
-- **Response**: Returns invoice object with nested `items`, `statusHistory`, and populated `duplicateOf` relation for instant diffing.
+There is no browser reset endpoint. Sample history and duplicate flags are fictional examples, not results of an included OCR or duplicate-detection engine.
 
-### 3. Update Invoice Status
-- **Endpoint**: `PATCH /api/invoices/:id/status`
-- **Body** (Zod-validated):
-  ```json
-  {
-    "status": "APPROVED", // or "REJECTED"
-    "note": "Approved for draw #4 payment based on certified compaction logs",
-    "actor": "Mussaddiq Mahmood (Project Engineer)"
-  }
-  ```
-- **Response**: HTTP 200 with updated invoice and new audit log entry.
+## API
 
-### 4. Seed Database
-- **Endpoint**: `POST /api/seed`
-- **Response**: Resets and populates the database with 6 construction invoices.
+Responses use `{ "success": true, ... }` or `{ "success": false, "error": "..." }`.
 
----
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/invoices` | List invoices with items, history, global statistics, and vendor names |
+| `GET` | `/api/invoices/:id` | Invoice details, including the linked original invoice for comparison |
+| `PATCH` | `/api/invoices/:id/status` | Approve or reject an invoice and record the decision |
+| `GET` | `/api/stats` | Global invoice counts and amounts |
 
-## 📦 Sample Construction Invoices & Duplicate Handling
+List filters: `tab=processing`, `needs_review`, `approved_rejected`, or `all` (default); `search` matches invoice number or vendor; `vendor` matches an exact vendor name. Statistics cover all invoices, independently of filters.
 
-The seed dataset models real-world commercial construction billing:
+```bash
+curl 'http://localhost:3000/api/invoices?tab=needs_review'
 
-| Invoice # | Contractor / Vendor | Amount | Status | Scenario Details |
-| :--- | :--- | :---: | :---: | :--- |
-| `INV-CON-1041` | Apex Concrete & Masonry | \$18,450.00 | `PROCESSING` | 4000 PSI foundation pour + 38M boom pump rental |
-| `INV-STL-2094` | Titan Structural Steel | \$42,800.00 | `NEEDS_REVIEW` | High-strength W14x90 steel beams (Original submission) |
-| `INV-STL-2094-DUP` | Titan Structural Steel | \$42,800.00 | `NEEDS_REVIEW` | **Duplicate Flagged**: Matches `INV-STL-2094` on items & total |
-| `INV-ELC-3105` | VoltWorks Electrical | \$9,230.00 | `PROCESSING` | 480V 3-phase commercial main distribution panel |
-| `INV-EXC-4012` | Bulldog Earthmoving | \$14,120.00 | `APPROVED` | Mass excavation + offsite clean fill hauling |
-| `INV-PLM-5088` | Keystone Plumbing | \$6,750.00 | `REJECTED` | Rejected: Emergency overtime rate (\$165/hr) exceeds agreement |
+curl -X PATCH 'http://localhost:3000/api/invoices/INVOICE_UUID/status' \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"REJECTED","note":"Duplicate submission","actor":"Accounts Payable"}'
+```
 
----
+`status` accepts `APPROVED` or `REJECTED`. A rejection requires a nonblank `note` (up to 2,000 characters). `actor` defaults to `Reviewer` and accepts 1–100 characters. Invalid input and repeated identical decisions return `400`; an unknown invoice returns `404`.
 
-## 🚀 Quickstart & Setup Instructions
+Decisions may be corrected by changing an approved invoice to rejected or vice versa. Each successful change records its actual previous state inside a transaction with a row lock. History is an application activity log, not a tamper-proof audit system. Reviewer names are supplied by the caller, not verified identities.
 
-### Prerequisites
-- Node.js 18+ or 22+
-- pnpm (or npm)
-- Docker (optional for local database)
+Amounts in database/API invoice records are decimal strings. Statistics include `currency`; if multiple currencies exist, `currency` and all monetary aggregates are `null`, while counts remain available. No exchange-rate conversion is performed.
 
-### Option 1: 1-Command Local PostgreSQL (Docker Compose)
+## Connecting your own pipeline
 
-1. Start PostgreSQL:
-   ```bash
-   docker compose up -d
-   ```
-2. Copy environment variables:
-   ```bash
-   cp .env.example .env
-   ```
-   *(Default connection string is already configured for local Docker: `postgres://postgres:postgrespassword@localhost:5433/sledge_invoices`)*
-3. Push schema migrations:
-   ```bash
-   pnpm db:push
-   # or: npm run db:push
-   ```
-4. Seed the sample invoices:
-   ```bash
-   pnpm db:seed
-   # or: npm run db:seed
-   ```
-5. Start the development server:
-   ```bash
-   pnpm dev
-   # or: npm run dev
-   ```
-   Open [http://localhost:3000](http://localhost:3000).
+This project is the review interface and database-backed API. It does **not** include invoice upload, OCR, email ingestion, n8n workflows, or automatic duplicate detection.
 
----
+An external service such as n8n can write invoices into PostgreSQL using the tables defined in [`src/db/schema.ts`](src/db/schema.ts):
 
-### Option 2: Cloud PostgreSQL (Neon / Supabase)
+1. Insert an `invoices` row and its `invoice_items` in a transaction. Use a globally unique `invoice_number`, an ISO currency code, and consistent line-item and invoice totals.
+2. Set the status to `PROCESSING` or `NEEDS_REVIEW`; add an initial `invoice_status_history` entry.
+3. For a suspected duplicate, set `duplicate_of_id` to the original invoice UUID and optionally add `DUPLICATE_SUSPECTED` to `flags`.
+4. Review through the interface. Your pipeline can read decisions from the API or database and perform downstream work.
 
-1. Create a database on [Neon.tech](https://neon.tech) or [Supabase](https://supabase.com).
-2. Set your `DATABASE_URL` in `.env`:
-   ```env
-   # Neon example:
-   DATABASE_URL="postgresql://user:password@ep-something.us-east-2.aws.neon.tech/sledge_invoices?sslmode=require"
+Keep credentials in your server or workflow environment. There is no invoice-creation endpoint, webhook, or guaranteed pagination contract. For a large dataset, add pagination before relying on the list endpoint.
 
-   # Supabase example:
-   DATABASE_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres"
-   ```
-3. Push schema:
-   ```bash
-   pnpm db:push
-   ```
-4. Seed data:
-   ```bash
-   pnpm db:seed
-   ```
-5. Start app:
-   ```bash
-   pnpm dev
-   ```
+## Deployment
 
+```bash
+pnpm build
+pnpm start
+```
+
+Set `DATABASE_URL` on the server and run `pnpm db:migrate` against the intended database before starting the app. Use `pnpm db:generate` to generate migrations after intentional schema changes.
+
+**Authentication is not included.** For real invoices, protect the entire application and `/api/*` routes with your organization's authenticated proxy or private access layer. An unprotected deployment allows visitors to read invoices and change decisions. Use fictional data for public demos.
+
+## Development
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+CI runs these checks on pushes to `main` and pull requests. Tests cover status-payload validation, currency formatting, and monetary aggregates.
+
+```text
+src/app/api/     Invoice and statistics route handlers
+src/components/ Review interface and shared UI primitives
+src/db/         Schema, migrations, connection, and fictional seed data
+src/hooks/      TanStack Query fetching and mutations
+src/lib/        Formatting and statistics helpers
+```
+
+Small fixes and improvements are welcome. Open an issue to discuss substantial changes and include the relevant checks with a pull request.
+
+## License and credit
+
+Copyright © 2026 [Mussaddiq Mahmood](https://github.com/mussaddiqmahmood7). Released under the [MIT License](LICENSE).
+
+You may use, modify, self-host, and commercially reuse this project under that license. Retain its copyright and license notice in copies or substantial portions. A link back to this repository is appreciated; a visible credit in your deployed interface is optional.

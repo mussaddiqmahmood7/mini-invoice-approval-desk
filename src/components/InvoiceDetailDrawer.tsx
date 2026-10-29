@@ -9,6 +9,7 @@ import {
   Sheet,
   SheetContent,
   SheetTitle,
+  SheetDescription,
 } from "./ui/sheet";
 import {
   X,
@@ -47,8 +48,8 @@ export function InvoiceDetailDrawer({
       await onStatusUpdate(
         invoice.id,
         "APPROVED",
-        "Approved for payment draw by Project Engineer",
-        "Mussaddiq Mahmood (Project Engineer)"
+        "Approved for payment",
+        "Reviewer"
       );
     } catch (err) {
       alert("Failed to approve invoice: " + String(err));
@@ -68,6 +69,7 @@ export function InvoiceDetailDrawer({
           side="right"
           className="top-0 right-0 h-[100dvh] max-h-[100dvh] w-full sm:max-w-xl md:max-w-2xl bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 flex flex-col p-0 overflow-hidden"
         >
+          <SheetDescription className="sr-only">Review invoice details and decision history.</SheetDescription>
           {/* Fixed Drawer Header (shrink-0) */}
           <div className="border-b border-zinc-200 dark:border-zinc-800 px-3.5 sm:px-6 py-3 sm:py-4 bg-zinc-50 dark:bg-zinc-900/95 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -139,17 +141,17 @@ export function InvoiceDetailDrawer({
                   <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
                     <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                     <span className="font-mono text-[11px] sm:text-xs font-bold uppercase tracking-wider">
-                      Duplicate Conflict Detected
+                      Suspected Duplicate
                     </span>
                   </div>
                   <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-mono uppercase bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40">
-                    100% Match
+                    Review Required
                   </span>
                 </div>
 
                 <p className="text-[11px] sm:text-xs text-amber-900/80 dark:text-amber-200/90 leading-relaxed font-sans">
                   {invoice.notes ||
-                    "This invoice matches existing ledger records for the same contractor, amount, and itemization."}
+                    "Review the linked original invoice before making a decision."}
                 </p>
 
                 {/* Side-by-side Diff Table */}
@@ -174,10 +176,10 @@ export function InvoiceDetailDrawer({
                     <div className="grid grid-cols-3 px-2 sm:px-3 py-1.5 items-center">
                       <span className="text-zinc-500">Amount</span>
                       <span className="text-amber-600 dark:text-amber-300 font-bold tabular-nums">
-                        {formatCurrency(invoice.totalAmount)}
+                        {formatCurrency(invoice.totalAmount, invoice.currency)}
                       </span>
                       <span className="text-zinc-700 dark:text-zinc-300 tabular-nums">
-                        {originalInvoice ? formatCurrency(originalInvoice.totalAmount) : formatCurrency(invoice.totalAmount)}
+                        {originalInvoice ? formatCurrency(originalInvoice.totalAmount, originalInvoice.currency) : formatCurrency(invoice.totalAmount, invoice.currency)}
                       </span>
                     </div>
 
@@ -261,10 +263,10 @@ export function InvoiceDetailDrawer({
                               {parseFloat(item.quantity).toFixed(2)}
                             </td>
                             <td className="px-2 py-2 text-right text-zinc-600 dark:text-zinc-400 tabular-nums">
-                              {formatCurrency(item.unitPrice)}
+                              {formatCurrency(item.unitPrice, invoice.currency)}
                             </td>
                             <td className="py-2 pl-2 pr-3 text-right text-zinc-900 dark:text-zinc-100 font-bold tabular-nums">
-                              {formatCurrency(item.amount)}
+                              {formatCurrency(item.amount, invoice.currency)}
                             </td>
                           </tr>
                         ))
@@ -283,15 +285,15 @@ export function InvoiceDetailDrawer({
                 <div className="border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/70 p-3 sm:p-4 space-y-1 font-mono text-[11px] sm:text-xs">
                   <div className="flex justify-between text-zinc-500 dark:text-zinc-400">
                     <span>Subtotal:</span>
-                    <span className="tabular-nums text-zinc-800 dark:text-zinc-300">{formatCurrency(invoice.subtotal)}</span>
+                    <span className="tabular-nums text-zinc-800 dark:text-zinc-300">{formatCurrency(invoice.subtotal, invoice.currency)}</span>
                   </div>
                   <div className="flex justify-between text-zinc-500 dark:text-zinc-400">
                     <span>Tax:</span>
-                    <span className="tabular-nums text-zinc-800 dark:text-zinc-300">{formatCurrency(invoice.taxAmount)}</span>
+                    <span className="tabular-nums text-zinc-800 dark:text-zinc-300">{formatCurrency(invoice.taxAmount, invoice.currency)}</span>
                   </div>
                   <div className="flex justify-between pt-1.5 border-t border-zinc-200 dark:border-zinc-800 text-xs sm:text-sm font-bold text-zinc-900 dark:text-white">
                     <span className="text-amber-600 dark:text-amber-400">Total:</span>
-                    <span className="text-amber-600 dark:text-amber-400 tabular-nums">{formatCurrency(invoice.totalAmount)}</span>
+                    <span className="text-amber-600 dark:text-amber-400 tabular-nums">{formatCurrency(invoice.totalAmount, invoice.currency)}</span>
                   </div>
                 </div>
               </div>

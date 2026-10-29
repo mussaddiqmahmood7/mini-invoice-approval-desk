@@ -42,7 +42,8 @@ export function FilterBar({
           <Search className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-zinc-400 dark:text-zinc-500" />
         </div>
         <input
-          type="text"
+          type="search"
+          aria-label="Search invoices by number or vendor"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search invoice # or vendor..."
@@ -50,6 +51,7 @@ export function FilterBar({
         />
         {search && (
           <button
+            aria-label="Clear search"
             onClick={() => onSearchChange("")}
             className="absolute inset-y-0 right-0 pr-2 sm:pr-2.5 flex items-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
           >
@@ -62,7 +64,7 @@ export function FilterBar({
       <div className="flex items-center gap-2">
         <div className="flex-1 sm:w-60 min-w-0">
           <Select value={selectedVendor} onValueChange={onVendorChange}>
-            <SelectTrigger className="w-full h-8 sm:h-9 text-xs sm:text-sm">
+            <SelectTrigger aria-label="Filter by vendor" className="w-full h-8 sm:h-9 text-xs sm:text-sm">
               <SelectValue placeholder="All Vendors" />
             </SelectTrigger>
             <SelectContent>

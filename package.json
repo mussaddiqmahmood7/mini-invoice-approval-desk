@@ -1,16 +1,18 @@
 {
-  "name": "sledge-invoice-approval-desk",
+  "name": "mini-invoice-approval-desk",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:seed": "tsx scripts/seed.ts"
+    "db:seed": "tsx scripts/seed.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.6",
@@ -22,7 +24,7 @@
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.38.3",
     "lucide-react": "^0.475.0",
-    "next": "^15.2.5",
+    "next": "^15.5.27",
     "next-themes": "^0.4.4",
     "postgres": "^3.4.5",
     "react": "^19.0.0",
@@ -32,19 +34,24 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
     "@types/node": "^22.13.4",
     "@types/react": "^19.0.9",
     "@types/react-dom": "^19.0.9",
     "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.30.4",
     "eslint": "^9.20.0",
-    "eslint-config-next": "^15.2.5",
+    "eslint-config-next": "^15.5.27",
     "postcss": "^8.5.2",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"
   },
-  "optionalDependencies": {
-    "@esbuild/linux-x64": "^0.28.2"
-  }
+  "description": "A lightweight, self-hosted invoice review and approval interface.",
+  "license": "MIT",
+  "author": "Mussaddiq Mahmood",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@12.14.0"
 }

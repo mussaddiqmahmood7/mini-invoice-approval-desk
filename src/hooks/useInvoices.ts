@@ -110,23 +110,3 @@ export function useUpdateInvoiceStatus() {
     },
   });
 }
-
-export function useSeedDatabase() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/seed", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to seed database");
-      }
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
-      queryClient.invalidateQueries({ queryKey: ["invoice"] });
-      queryClient.invalidateQueries({ queryKey: ["stats"] });
-    },
-  });
-}

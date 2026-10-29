@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import animate from "tailwindcss-animate";
 
 const config: Config = {
   content: [
@@ -10,13 +11,13 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        builder: {
+        accent: {
           50: "#fffbeb",
           100: "#fef3c7",
           200: "#fde68a",
           300: "#fcd34d",
           400: "#fbbf24",
-          500: "#f59e0b", // Sledge amber brand
+          500: "#f59e0b",
           600: "#d97706",
           700: "#b45309",
           800: "#92400e",
@@ -38,7 +39,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [animate],
 };
 
 export default config;
